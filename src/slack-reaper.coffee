@@ -34,9 +34,8 @@ delMessage = (robot, channel, msgid) ->
 
 module.exports = (robot) ->
 
-  data = []
   robot.brain.setAutoSave false
-  data = robot.brain.get "hubot-slack-reaper-sumup"
+  data = (robot.brain.get "hubot-slack-reaper-sumup") ? []
   robot.brain.setAutoSave true
 
   sumUp = (channel, user) ->
