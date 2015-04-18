@@ -33,6 +33,29 @@ apitoken = process.env.SLACK_API_TOKEN
 delMessage = (robot, channel, msgid) ->
 
 module.exports = (robot) ->
+
+  data = []
+  robot.brain.setAutoSave false
+  data = robot.brain.get "hubot-slack-reaper-sumup"
+  robot.brain.setAutoSave true
+
+  sumUp = (channel, user) ->
+    channel = escape channel
+    user = escape user
+    # data = robot.brain.get　"hubot-slack-reaper-sumup"
+    # -> [ dev_null: { taro: 1, hanako: 2 },
+    #      lounge: { taro: 5, hanako: 3 } ]
+    if data[channel]
+      if data[channel][user]
+        data[channel][user]++
+      else
+        data[channel][user] = 1
+    else
+      data[channel] = {user: 1}
+
+    robot.brain.set "hubot-slack-reaper-sumup", data
+    console.log(data)
+
   robot.hear regex, (res) ->
     if targetroom
       if res.message.room != targetroom
@@ -54,3 +77,4 @@ module.exports = (robot) ->
           catch error
             robot.logger.error("Failed to request removing message #{msgid} in #{channel} (reason: #{error})")
     setTimeout(rmjob, duration * 1000)
+    sumUp channel, res.message.user.name.toLowerCase()
