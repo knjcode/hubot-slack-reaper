@@ -53,6 +53,20 @@ module.exports = (robot) ->
     robot.brain.set "hubot-slack-reaper-sumup", data
     console.log(data)
 
+  robot.hear /score/, (res) ->
+    if targetroom
+      if res.message.room != targetroom
+        return
+    console.log data[res.message.room]
+    z = []
+    for k,v of data[res.message.room]
+      z.push([k,v])
+    z.sort((a,b) ->
+      b[1] - a[1]
+    )
+    for user in z
+      res.send user[0]+':'+user[1]
+
   robot.hear regex, (res) ->
     if targetroom
       if res.message.room != targetroom
