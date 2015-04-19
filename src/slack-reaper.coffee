@@ -74,4 +74,4 @@ module.exports = (robot) ->
           catch error
             robot.logger.error("Failed to request removing message #{msgid} in #{channel} (reason: #{error})")
     setTimeout(rmjob, duration * 1000)
-    sumUp channel, res.message.user.name.toLowerCase()
+    sumUp res.message.room, res.message.user.name.toLowerCase()
