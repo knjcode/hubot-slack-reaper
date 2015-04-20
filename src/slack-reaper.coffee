@@ -25,6 +25,40 @@ duration = process.env.HUBOT_SLACK_REAPER_DURATION ? 300
 apitoken = process.env.SLACK_API_TOKEN
 
 module.exports = (robot) ->
+
+  robot.brain.setAutoSave false
+  data = (robot.brain.get "hubot-slack-reaper-sumup") ? []
+  robot.brain.setAutoSave true
+
+  sumUp = (channel, user) ->
+    channel = escape channel
+    user = escape user
+    # data = robot.brain.get　"hubot-slack-reaper-sumup"
+    # -> [ dev_null: { taro: 1, hanako: 2 },
+    #      lounge: { taro: 5, hanako: 3 } ]
+    if !data[channel]
+      data[channel] = {}
+    if !data[channel][user]
+      data[channel][user] = 0
+    data[channel][user]++
+
+    robot.brain.set "hubot-slack-reaper-sumup", data
+    console.log(data)
+
+  robot.hear /score/, (res) ->
+    if targetroom
+      if res.message.room != targetroom
+        return
+    console.log data[res.message.room]
+    z = []
+    for k,v of data[res.message.room]
+      z.push([k,v])
+    z.sort((a,b) ->
+      b[1] - a[1]
+    )
+    for user in z
+      res.send user[0]+':'+user[1]
+
   robot.hear regex, (res) ->
     if targetroom
       if res.message.room != targetroom
@@ -46,3 +80,4 @@ module.exports = (robot) ->
           catch error
             robot.logger.error("Failed to request removing message #{msgid} in #{channel} (reason: #{error})")
     setTimeout(rmjob, duration * 1000)
+    sumUp res.message.room, res.message.user.name.toLowerCase()
