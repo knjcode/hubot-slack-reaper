@@ -56,8 +56,12 @@ module.exports = (robot) ->
     z.sort((a,b) ->
       b[1] - a[1]
     )
+    msgs = [
+      "Delete ranking of "+res.message.room
+    ]
     for user in z
-      res.send user[0]+':'+user[1]
+      msgs.push(user[0]+':'+user[1])
+    res.send msgs.join('\n')
 
   robot.hear regex, (res) ->
     if targetroom
