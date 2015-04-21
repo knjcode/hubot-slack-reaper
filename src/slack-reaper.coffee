@@ -34,24 +34,32 @@ delMessage = (robot, channel, msgid) ->
 
 module.exports = (robot) ->
 
-  robot.brain.setAutoSave false
-  data = (robot.brain.get "hubot-slack-reaper-sumup") ? []
-  robot.brain.setAutoSave true
+  data = {}
+  loaded = false
+
+  robot.brain.on 'loaded', ->
+    try
+      data = JSON.parse robot.brain.get "hubot-slack-reaper-sumup"
+    catch e
+      console.log 'JSON parse error'
+    loaded = true
 
   sumUp = (channel, user) ->
     channel = escape channel
     user = escape user
     # data = robot.brain.get　"hubot-slack-reaper-sumup"
-    # -> [ dev_null: { taro: 1, hanako: 2 },
-    #      lounge: { taro: 5, hanako: 3 } ]
+    # -> { dev_null: { taro: 1, hanako: 2 },
+    #      lounge: { taro: 5, hanako: 3 } }
     if !data[channel]
       data[channel] = {}
     if !data[channel][user]
       data[channel][user] = 0
     data[channel][user]++
+    console.log data
 
-    robot.brain.set "hubot-slack-reaper-sumup", data
-    console.log(data)
+    # robot.brain.set wait until loaded avoid destruction of data
+    if loaded
+      robot.brain.set "hubot-slack-reaper-sumup", JSON.stringify data
 
   robot.hear /^score$/, (res) ->
     if targetroom
