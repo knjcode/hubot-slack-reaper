@@ -72,6 +72,9 @@ module.exports = (robot) ->
               robot.logger.error("Failed to request removing message #{msgid} in #{channel} (reason: #{error})")
       setTimeout(rmjob, delDur * 1000)
 
+  robot.hear /^settings$/, (res) ->
+    res.send "```" + JSON.stringify(settings) + "```"
+
   isInChannel = (channel) ->
     for roomRegExp, _ of settings
       if RegExp(roomRegExp).test(channel)
