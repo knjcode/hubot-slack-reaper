@@ -86,22 +86,25 @@ module.exports = (robot) ->
   robot.hear /^score$/, (res) ->
     if not isInChannel(res.message.room)
       return
-
-    # sort by deletions
-    z = []
-    for k,v of data[res.message.room]
-      z.push([k,v])
-    z.sort( (a,b) -> b[1] - a[1] )
-
-    # display ranking
-    if z.length > 0
-      msgs = [ "Deleted ranking of "+res.message.room ]
-      for user in z
-        msgs.push(user[0]+':'+user[1])
-      res.send msgs.join('\n')
+    res.send score(res.message.room)
 
   robot.hear /^settings$/, (res) ->
     res.send "```" + JSON.stringify(settings) + "```"
+
+  score = (channel) ->
+    # sort by deletions
+    z = []
+    for k,v of data[channel]
+      z.push([k,v])
+    z.sort( (a,b) -> b[1] - a[1] )
+
+    # return score report
+    if z.length > 0
+      msgs = [ "Deleted ranking of " + channel ]
+      for user in z
+        msgs.push(user[0]+':'+user[1])
+      return msgs.join('\n')
+    return ""
 
   sumUp = (channel, user) ->
     channel = escape channel
