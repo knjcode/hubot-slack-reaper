@@ -24,6 +24,9 @@
 # Author:
 #   Katsuyuki Tateishi <kt@wheel.jp>
 
+cron = require('cron').CronJob
+time = require 'time'
+
 module.exports = (robot) ->
 
   settings = undefined
@@ -50,11 +53,13 @@ module.exports = (robot) ->
   apitoken = process.env.SLACK_API_TOKEN
 
   data = {}
+  room = {}
   loaded = false
 
   robot.brain.on 'loaded', ->
     try
       data = JSON.parse robot.brain.get "hubot-slack-reaper-sumup"
+      room = JSON.parse robot.brain.get "hubot-slack-reaper-room"
     catch e
       console.log 'JSON parse error'
     loaded = true
@@ -90,6 +95,16 @@ module.exports = (robot) ->
 
   robot.hear /^settings$/, (res) ->
     res.send "```" + JSON.stringify(settings) + "```"
+
+  robot.hear /^report (enable|disable|list)$/, (res) ->
+    if res.match[1] is "enable" or res.match[1] is "disable"
+      addRoom(res.message.room, res.match[1])
+      msg = res.match[1] + " score report of " + res.message.room
+      robot.logger.info msg
+      res.send msg
+      enableReport()
+    else if res.match[1] is "list"
+      res.send JSON.stringify room
 
   score = (channel) ->
     # sort by deletions
@@ -137,3 +152,24 @@ module.exports = (robot) ->
           if RegExp(msgRegExp).test(msg)
             durations.push(duration)
     return Math.min.apply 0, durations
+
+  addRoom = (channel, setting) ->
+    channel = escape channel
+    # room = robot.brain.get　"hubot-slack-reaper-room"
+    # -> { dev_null: enable,
+    #      lounge: disable }
+    room[channel] = setting
+
+    # robot.brain.set wait until loaded avoid destruction of data
+    if loaded
+      robot.brain.set "hubot-slack-reaper-room", JSON.stringify room
+
+  report = ""
+  enableReport = ->
+    report = new cron('0 55 12 * * *', () ->
+      for channel, setting of room
+        if setting is "enable"
+          robot.send { room: channel }, score(channel)
+    )
+    report.start()
+  enableReport()
