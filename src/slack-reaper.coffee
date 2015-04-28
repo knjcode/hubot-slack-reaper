@@ -85,7 +85,7 @@ module.exports = (robot) ->
               else
                 robot.logger.error("Failed to remove message")
             catch error
-              robot.logger.error("Failed to request removing message #{msgid} in #{channel} (reason: #{error})")
+              robot.logger.error("Failed to request removing message #{emsgid} in #{echannel} (reason: #{error})")
       setTimeout(rmjob, delDur * 1000)
       sumUp res.message.room, res.message.user.name.toLowerCase()
 
@@ -97,7 +97,7 @@ module.exports = (robot) ->
   robot.hear /^settings$/, (res) ->
     res.send "```" + JSON.stringify(settings) + "```"
 
-  robot.hear /^report (enable|disable|list) *(\S+ \S+ \S+ \S+ \S+ \S+)*$/, (res) ->
+  robot.hear /^report (enable|disable|list) *(\S+ \S+ \S+ \S+ \S+)*$/, (res) ->
     if res.match[1] is "enable" or res.match[1] is "disable"
       addRoom(res.message.room, res.match[1], res.match[2])
       msg = res.match[1] + " score report of " + res.message.room + " " + res.match[2]
@@ -128,6 +128,8 @@ module.exports = (robot) ->
     # data = robot.brain.get　"hubot-slack-reaper-sumup"
     # -> { dev_null: { taro: 1, hanako: 2 },
     #      lounge: { taro: 5, hanako: 3 } }
+    if !data
+      data = {}
     if !data[channel]
       data[channel] = {}
     if !data[channel][user]
@@ -171,11 +173,14 @@ module.exports = (robot) ->
       robot.brain.set "hubot-slack-reaper-room", JSON.stringify room
 
   enableReport = ->
-    report = []
+    for job in report
+      job.stop()
+    repot = []
+
     if loaded
       for channel, setting of room
         if setting isnt "disable"
-          report[report.length] = new cron setting, () ->
+          report[report.length] = new cron "0 " + setting, () ->
             robot.send { room: channel }, score(channel)
           , null, true, "Asia/Tokyo"
   enableReport()
