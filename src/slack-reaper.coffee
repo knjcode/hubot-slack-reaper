@@ -39,7 +39,7 @@ module.exports = (robot) ->
           settings = JSON.parse body
           robot.logger.info("settings:" + JSON.stringify settings)
         catch error
-          robot.logger.error("JSON parse error")
+          robot.logger.error("JSON parse error at load json")
   else
     targetroom = process.env.HUBOT_SLACK_REAPER_CHANNEL ? "^dev_null$"
     regex = process.env.HUBOT_SLACK_REAPER_REGEX ? ".*"
@@ -48,7 +48,7 @@ module.exports = (robot) ->
       settings = JSON.parse "{ \"#{targetroom}\": { \"#{regex}\": #{duration} } }"
       robot.logger.info("settings:" + JSON.stringify settings)
     catch error
-      robot.logger.error("JSON parse error")
+      robot.logger.error("JSON parse error at load json")
 
   apitoken = process.env.SLACK_API_TOKEN
 
@@ -62,7 +62,7 @@ module.exports = (robot) ->
       data = JSON.parse robot.brain.get "hubot-slack-reaper-sumup"
       room = JSON.parse robot.brain.get "hubot-slack-reaper-room"
     catch e
-      console.log 'JSON parse error'
+      robot.logger.error("JSON parse error at robot.brain.get")
     loaded = true
 
   robot.hear /.*/, (res) ->
@@ -101,7 +101,7 @@ module.exports = (robot) ->
     if res.match[1] is "enable" or res.match[1] is "disable"
       addRoom(res.message.room, res.match[1], res.match[2])
       msg = res.match[1] + " score report of " + res.message.room + " " + res.match[2]
-      robot.logger.info msg
+      robot.logger.info(msg)
       res.send msg
       enableReport()
     else if res.match[1] is "list"
@@ -135,7 +135,7 @@ module.exports = (robot) ->
     if !data[channel][user]
       data[channel][user] = 0
     data[channel][user]++
-    console.log data
+    robot.logger.info(data)
 
     # robot.brain.set wait until loaded avoid destruction of data
     if loaded
