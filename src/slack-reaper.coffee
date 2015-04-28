@@ -84,9 +84,8 @@ module.exports = (robot) ->
       sumUp res.message.room, res.message.user.name.toLowerCase()
 
   robot.hear /^score$/, (res) ->
-    if targetroom
-      if res.message.room != targetroom
-        return
+    if not isInChannel(res.message.room)
+      return
 
     # sort by deletions
     z = []
