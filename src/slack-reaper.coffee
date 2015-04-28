@@ -158,6 +158,8 @@ module.exports = (robot) ->
     # room = robot.brain.get　"hubot-slack-reaper-room"
     # -> { dev_null: enable,
     #      lounge: disable }
+    if !room
+      room = {}
     room[channel] = setting
 
     # robot.brain.set wait until loaded avoid destruction of data
@@ -166,7 +168,7 @@ module.exports = (robot) ->
 
   report = ""
   enableReport = ->
-    report = new cron('0 55 12 * * *', () ->
+    report = new cron('0 0 14 * * *', () ->
       for channel, setting of room
         if setting is "enable"
           robot.send { room: channel }, score(channel)
