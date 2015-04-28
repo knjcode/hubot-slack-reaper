@@ -96,10 +96,10 @@ module.exports = (robot) ->
   robot.hear /^settings$/, (res) ->
     res.send "```" + JSON.stringify(settings) + "```"
 
-  robot.hear /^report (enable|disable|list)$/, (res) ->
+  robot.hear /^report (enable|disable|list) *(\S+ \S+ \S+ \S+ \S+ \S+)*$/, (res) ->
     if res.match[1] is "enable" or res.match[1] is "disable"
-      addRoom(res.message.room, res.match[1])
-      msg = res.match[1] + " score report of " + res.message.room
+      addRoom(res.message.room, res.match[1], res.match[2])
+      msg = res.match[1] + " score report of " + res.message.room + " " + res.match[2]
       robot.logger.info msg
       res.send msg
       enableReport()
@@ -153,24 +153,28 @@ module.exports = (robot) ->
             durations.push(duration)
     return Math.min.apply 0, durations
 
-  addRoom = (channel, setting) ->
+  addRoom = (channel, setting, cron) ->
     channel = escape channel
     # room = robot.brain.get　"hubot-slack-reaper-room"
     # -> { dev_null: enable,
     #      lounge: disable }
     if !room
       room = {}
-    room[channel] = setting
+    if setting is "enable"
+      room[channel] = cron
+    else
+      room[channel] = "disable"
 
     # robot.brain.set wait until loaded avoid destruction of data
     if loaded
       robot.brain.set "hubot-slack-reaper-room", JSON.stringify room
 
-  report = ""
+  report = []
   enableReport = ->
-    report = new cron '0 30 14 * * *', () ->
+    if loaded
       for channel, setting of room
-        if setting is "enable"
-          robot.send { room: channel }, score(channel)
-    , null, true, "Asia/Tokyo"
+        if setting isnt "disable"
+          report[report.length] = new cron setting, () ->
+            robot.send { room: channel }, score(channel)
+          , null, true, "Asia/Tokyo"
   enableReport()
