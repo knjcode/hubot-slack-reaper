@@ -168,10 +168,9 @@ module.exports = (robot) ->
 
   report = ""
   enableReport = ->
-    report = new cron('0 0 14 * * *', () ->
+    report = new cron '0 30 14 * * *', () ->
       for channel, setting of room
         if setting is "enable"
           robot.send { room: channel }, score(channel)
-    )
-    report.start()
+    , null, true, "Asia/Tokyo"
   enableReport()
