@@ -54,6 +54,7 @@ module.exports = (robot) ->
 
   data = {}
   room = {}
+  report = []
   loaded = false
 
   robot.brain.on 'loaded', ->
@@ -169,8 +170,8 @@ module.exports = (robot) ->
     if loaded
       robot.brain.set "hubot-slack-reaper-room", JSON.stringify room
 
-  report = []
   enableReport = ->
+    report = []
     if loaded
       for channel, setting of room
         if setting isnt "disable"
