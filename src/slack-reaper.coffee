@@ -12,6 +12,7 @@
 #   			 	  (default. undefined i.e. all channels)
 #   HUBOT_SLACK_REAPER_REGEX	- Target pattern (default. ".*")
 #   HUBOT_SLACK_REAPER_DURATION	- Duration to reap in seconds (default. 300)
+#   HUBOT_SLACK_REAPER_TIMEZONE - Timezone (default. "Asia/Tokyo")
 #
 # Commands:
 #   N/A
@@ -51,6 +52,7 @@ module.exports = (robot) ->
       robot.logger.error("JSON parse error at load json")
 
   apitoken = process.env.SLACK_API_TOKEN
+  timezone = process.env.HUBOT_SLACK_REAPER_TIMEZONE
 
   data = {}
   room = {}
@@ -182,5 +184,5 @@ module.exports = (robot) ->
         if setting isnt "disable"
           report[report.length] = new cron "0 " + setting, () ->
             robot.send { room: channel }, score(channel)
-          , null, true, "Asia/Tokyo"
+          , null, true, timezone
   enableReport()
