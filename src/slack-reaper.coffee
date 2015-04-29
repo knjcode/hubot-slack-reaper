@@ -25,7 +25,7 @@
 # Author:
 #   Katsuyuki Tateishi <kt@wheel.jp>
 
-cron = require('cron').CronJob
+cronJob = require('cron').CronJob
 time = require 'time'
 
 module.exports = (robot) ->
@@ -101,11 +101,13 @@ module.exports = (robot) ->
 
   robot.hear /^report (enable|disable|list) *(\S+ \S+ \S+ \S+ \S+)*$/, (res) ->
     if res.match[1] is "enable" or res.match[1] is "disable"
-      addRoom(res.message.room, res.match[1], res.match[2])
-      msg = res.match[1] + " score report of " + res.message.room + " " + res.match[2]
-      robot.logger.info(msg)
-      res.send msg
-      enableReport()
+      if addRoom(res.message.room, res.match[1], res.match[2])
+        msg = res.match[1] + " score report of " + res.message.room + " " + res.match[2]
+        robot.logger.info(msg)
+        res.send msg
+        enableReport()
+      else
+        res.send "Failed to change cron setting"
     else if res.match[1] is "list"
       res.send JSON.stringify room
 
@@ -166,6 +168,12 @@ module.exports = (robot) ->
     if !room
       room = {}
     if setting is "enable"
+      # check cron pattern
+      try
+        new cronJob "0 " + cron, () ->
+      catch error
+        robot.logger.error("Invalid cron pattern:" + cron)
+        return false
       room[channel] = cron
     else
       room[channel] = "disable"
@@ -173,6 +181,7 @@ module.exports = (robot) ->
     # robot.brain.set wait until loaded avoid destruction of data
     if loaded
       robot.brain.set "hubot-slack-reaper-room", JSON.stringify room
+    return true
 
   enableReport = ->
     for job in report
@@ -182,7 +191,7 @@ module.exports = (robot) ->
     if loaded
       for channel, setting of room
         if setting isnt "disable"
-          report[report.length] = new cron "0 " + setting, () ->
+          report[report.length] = new cronJob "0 " + setting, () ->
             robot.send { room: channel }, score(channel)
           , null, true, timezone
   enableReport()
