@@ -52,7 +52,7 @@ module.exports = (robot) ->
       robot.logger.error("JSON parse error at load json")
 
   apitoken = process.env.SLACK_API_TOKEN
-  timezone = process.env.HUBOT_SLACK_REAPER_TIMEZONE
+  timezone = process.env.HUBOT_SLACK_REAPER_TIMEZONE ? "Asia/Tokyo"
 
   data = {}
   room = {}
