@@ -13,6 +13,8 @@
 #   HUBOT_SLACK_REAPER_REGEX	- Target pattern (default. ".*")
 #   HUBOT_SLACK_REAPER_DURATION	- Duration to reap in seconds (default. 300)
 #   HUBOT_SLACK_REAPER_TIMEZONE - Timezone (default. "Asia/Tokyo")
+#   HUBOT_SLACK_REAPER_DOBACKUP - Backup data on daily or not (default. "false")
+#   HUBOT_SLACK_REAPER_BACKUPTIME - Time of daily backup (default. "00:00")
 #
 # Commands:
 #   N/A
@@ -27,6 +29,7 @@
 
 cronJob = require('cron').CronJob
 time = require 'time'
+cloneDeep = require 'lodash.clonedeep'
 
 module.exports = (robot) ->
 
@@ -53,18 +56,42 @@ module.exports = (robot) ->
 
   apitoken = process.env.SLACK_API_TOKEN
   timezone = process.env.HUBOT_SLACK_REAPER_TIMEZONE ? "Asia/Tokyo"
+  doBackup = process.env.HUBOT_SLACK_REAPER_DOBACKUP ? false
+  backupTime = process.env.HUBOT_SLACK_REAPER_BACKUPTIME ? "00:00"
 
   data = {}
+  latestData = {}
   room = {}
   report = []
+  backupJob = {}
   loaded = false
 
   robot.brain.on 'loaded', ->
-    try
-      data = JSON.parse robot.brain.get "hubot-slack-reaper-sumup"
-      room = JSON.parse robot.brain.get "hubot-slack-reaper-room"
-    catch e
-      robot.logger.error("JSON parse error at robot.brain.get")
+    # hubot-slack-reaper-sumup:          current sum-up data
+    #   -> { dev_null: { taro: 1, hanako: 2 },
+    #        lounge: { taro: 5, hanako: 3 } }
+    #
+    # hubot-slack-reaper-sumup-latest:   latest sum-up data
+    #   Same format as hubot-slack-reaper-sumup
+    #   When hubot report sum-up data and HUBOT_SLACK_REAPER_DOBACKUP is true,
+    #   set current sum-up to latest
+    #
+    # hubot-slack-reaper-sumup-YYYYMMDD: daily backup of sum-up data
+    #   Same format as hubot-slack-reaper-sumup
+    #   Backup data at the time of HUBOT_SLACK_REAPER_BACKUPTIME
+    #   YYYYMMDD is backup date
+    #
+    # hubot-slack-reaper-room:           Whether report sum-up data or not
+    #   Set channel name with cron pattern
+    #   -> { dev_null: "0 9,21 * * *",
+    #        lounge: "disable" }
+    if !loaded
+      try
+        data = JSON.parse robot.brain.get "hubot-slack-reaper-sumup"
+        room = JSON.parse robot.brain.get "hubot-slack-reaper-room"
+      catch error
+        robot.logger.error("JSON parse error at robot.brain.get")
+      latestData = cloneDeep data
     loaded = true
 
   robot.hear /.*/, (res) ->
@@ -97,7 +124,12 @@ module.exports = (robot) ->
     res.send score(res.message.room)
 
   robot.hear /^settings$/, (res) ->
-    res.send "```" + JSON.stringify(settings) + "```"
+    msgs = []
+    msgs.push "```" + JSON.stringify(settings) + "```"
+    msgs.push "timezone:" + timezone
+    msgs.push "doBackup:" + doBackup
+    msgs.push "backupTime:" + backupTime
+    res.send msgs.join('\n')
 
   robot.hear /^report (enable|disable|list) *(\S+ \S+ \S+ \S+ \S+)*$/, (res) ->
     if res.match[1] is "enable" or res.match[1] is "disable"
@@ -112,9 +144,17 @@ module.exports = (robot) ->
       res.send JSON.stringify room
 
   score = (channel) ->
-    # sort by deletions
+    # diff = data[channel] - latestData[channel]
+    diff = {}
+    for name, num of data[channel]
+      if (num - latestData[channel][name]) > 0
+        diff[name] = num - latestData[channel][name]
+    # update latestData
+    latestData = cloneDeep data
+
+    # sort by deletions of data
     z = []
-    for k,v of data[channel]
+    for k,v of diff
       z.push([k,v])
     z.sort( (a,b) -> b[1] - a[1] )
 
@@ -129,9 +169,6 @@ module.exports = (robot) ->
   sumUp = (channel, user) ->
     channel = escape channel
     user = escape user
-    # data = robot.brain.get　"hubot-slack-reaper-sumup"
-    # -> { dev_null: { taro: 1, hanako: 2 },
-    #      lounge: { taro: 5, hanako: 3 } }
     if !data
       data = {}
     if !data[channel]
@@ -141,7 +178,7 @@ module.exports = (robot) ->
     data[channel][user]++
     robot.logger.info(data)
 
-    # robot.brain.set wait until loaded avoid destruction of data
+    # wait robot.brain.set until loaded avoid destruction of data
     if loaded
       robot.brain.set "hubot-slack-reaper-sumup", JSON.stringify data
 
@@ -162,9 +199,6 @@ module.exports = (robot) ->
 
   addRoom = (channel, setting, cron) ->
     channel = escape channel
-    # room = robot.brain.get　"hubot-slack-reaper-room"
-    # -> { dev_null: enable,
-    #      lounge: disable }
     if !room
       room = {}
     if setting is "enable"
@@ -178,7 +212,7 @@ module.exports = (robot) ->
     else
       room[channel] = "disable"
 
-    # robot.brain.set wait until loaded avoid destruction of data
+    # wait robot.brain.set until loaded avoid destruction of data
     if loaded
       robot.brain.set "hubot-slack-reaper-room", JSON.stringify room
     return true
@@ -195,3 +229,21 @@ module.exports = (robot) ->
             robot.send { room: channel }, score(channel)
           , null, true, timezone
   enableReport()
+
+  dailyBackup = ->
+    if doBackup isnt "false"
+      [hour, min] = backupTime.split(":")
+      cron = "0 " + min + " " + hour + " * * *"
+      d = new Date()
+      YYYY = d.getFullYear()
+      MM = (d.getMonth() + 101).toString().slice(1)
+      DD = (d.getDate() + 100).toString().slice(1)
+      backupKey = "hubot-slack-reaper-sumup-"+YYYY+MM+DD
+
+      backupJob = new cronJob cron, () ->
+        if loaded
+          robot.brain.set backupKey, data
+          latestData = cloneDeep data
+          robot.logger.info("Daily backup")
+      , null, true, timezone
+  dailyBackup()

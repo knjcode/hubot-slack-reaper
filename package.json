@@ -19,6 +19,7 @@
   "dependencies": {
     "coffee-script": "~1.6",
     "cron": "^1.0.9",
+    "lodash.clonedeep": "^3.0.0",
     "time": "^0.11.2"
   },
 
