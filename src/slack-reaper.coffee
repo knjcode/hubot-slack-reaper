@@ -113,6 +113,9 @@ module.exports = (robot) ->
         msgs.push(user[0]+':'+user[1])
       res.send msgs.join('\n')
 
+  robot.hear /^settings$/, (res) ->
+    res.send "```" + JSON.stringify(settings) + "```"
+
   robot.hear /.*/, (res) ->
     if not isInChannel(res.message.room)
       return
