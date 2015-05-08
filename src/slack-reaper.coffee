@@ -38,10 +38,11 @@ module.exports = (robot) ->
   loaded = false
 
   robot.brain.on 'loaded', ->
-    try
-      data = JSON.parse robot.brain.get "hubot-slack-reaper-sumup"
-    catch e
-      console.log 'JSON parse error'
+    if !loaded
+      try
+        data = JSON.parse robot.brain.get "hubot-slack-reaper-sumup"
+      catch e
+        console.log 'JSON parse error'
     loaded = true
 
   sumUp = (channel, user) ->
