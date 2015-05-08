@@ -67,19 +67,9 @@ module.exports = (robot) ->
     if targetroom
       if res.message.room != targetroom
         return
-
-    # sort by deletions
-    z = []
-    for k,v of data[res.message.room]
-      z.push([k,v])
-    z.sort( (a,b) -> b[1] - a[1] )
-
-    # display ranking
-    if z.length > 0
-      msgs = [ "Deleted ranking of "+res.message.room ]
-      for user in z
-        msgs.push(user[0]+':'+user[1])
-      res.send msgs.join('\n')
+    reply = score(res.message.room)
+    if reply.length > 0
+      res.send reply
 
   robot.hear regex, (res) ->
     if targetroom
@@ -103,3 +93,18 @@ module.exports = (robot) ->
             robot.logger.error("Failed to request removing message #{msgid} in #{channel} (reason: #{error})")
     setTimeout(rmjob, duration * 1000)
     sumUp res.message.room, res.message.user.name.toLowerCase()
+
+  score = (channel) ->
+    # sort by deletions
+    z = []
+    for k,v of data[channel]
+      z.push([k,v])
+    z.sort( (a,b) -> b[1] - a[1] )
+
+    # display ranking
+    if z.length > 0
+      msgs = [ "Deleted ranking of " + channel ]
+      for user in z
+        msgs.push(user[0]+':'+user[1])
+      return msgs.join('\n')
+    return ""
