@@ -19,6 +19,8 @@
 # Author:
 #   Katsuyuki Tateishi <kt@wheel.jp>
 
+cloneDeep = require 'lodash.clonedeep'
+
 targetroom = process.env.HUBOT_SLACK_REAPER_CHANNEL
 regex = new RegExp(if process.env.HUBOT_SLACK_REAPER_REGEX
                      process.env.HUBOT_SLACK_REAPER_REGEX
@@ -35,6 +37,7 @@ delMessage = (robot, channel, msgid) ->
 module.exports = (robot) ->
 
   data = {}
+  latestData = {}
   loaded = false
 
   robot.brain.on 'loaded', ->
@@ -43,6 +46,7 @@ module.exports = (robot) ->
         data = JSON.parse robot.brain.get "hubot-slack-reaper-sumup"
       catch e
         console.log 'JSON parse error'
+      latestData = cloneDeep data
     loaded = true
 
   sumUp = (channel, user) ->
@@ -96,9 +100,18 @@ module.exports = (robot) ->
     sumUp res.message.room, res.message.user.name.toLowerCase()
 
   score = (channel) ->
-    # sort by deletions
+    # culculate diff between data[channel] and latestData[channel]
+    diff = {}
+    for name, num of data[channel]
+      if (num - latestData[channel][name]) > 0
+        diff[name] = num - latestData[channel][name]
+
+    # update latestData
+    latestData = cloneDeep data
+
+    # sort by deletions of diff
     z = []
-    for k,v of data[channel]
+    for k,v of diff
       z.push([k,v])
     z.sort( (a,b) -> b[1] - a[1] )
 
